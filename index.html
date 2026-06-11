@@ -6,27 +6,103 @@
     <title>我的跨平台文档阅读器</title>
     <style>
         /* 基础页面重置 */
-        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #525659; }
-        
-        /* 顶部控制栏样式（文档选择与翻页） */
-        #top-bar { 
-            background-color: #323639; color: white; padding: 10px; 
-            display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10;
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #525659;
         }
-        .control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
-        select, button { padding: 6px 12px; font-size: 14px; border-radius: 4px; border: none; cursor: pointer; }
-        button { background-color: #007bff; color: white; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
 
-        /* 画布容器样式（支持滚动） */
-        #canvas-container { flex-grow: 1; overflow: auto; display: flex; justify-content: center; padding: 10px; }
-        
-        /* 渲染 PDF 的画布 */
-        canvas { 
-            /* 确保画布在手机上不会超出屏幕宽度，按比例缩放 */
-            max-width: 100%; height: auto; 
-            background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+        /* 顶部控制栏 */
+        #top-bar {
+            background-color: #323639;
+            color: white;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 10;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        label {
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        select {
+            padding: 6px 10px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            background: #fff;
+            max-width: 200px;
+        }
+        button {
+            padding: 6px 14px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            white-space: nowrap;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+
+        #page-info {
+            font-size: 14px;
+            white-space: nowrap;
+            color: #ccc;
+        }
+
+        /* 画布容器 —— 垂直滚动 / 滑动阅读 */
+        #canvas-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 8px;
+            gap: 12px;
+            /* 平滑滚动 */
+            scroll-behavior: smooth;
+            /* iOS 惯性滚动（滑动阅读） */
+            -webkit-overflow-scrolling: touch;
+            /* 滚动贴靠（可选，让每页吸附） */
+            scroll-snap-type: y proximity;
+        }
+
+        /* 每页 PDF 的画布 */
+        .page-canvas {
+            display: block;
+            background-color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+            border-radius: 2px;
+            /* scroll-snap 让滑动时停在页面上 */
+            scroll-snap-align: center;
+        }
+
+        /* 加载中的占位 */
+        .page-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #444;
+            color: #aaa;
+            font-size: 14px;
+            border-radius: 2px;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -35,130 +111,136 @@
 
     <div id="top-bar">
         <div class="control-group">
-            <label for="pdf-selector">书目：</label>
+            <label for="pdf-selector">📖 书目：</label>
             <select id="pdf-selector" onchange="loadSelectedPDF()">
                 <option value="">正在加载书目列表...</option>
             </select>
         </div>
         <div class="control-group">
-            <button id="prev-page" onclick="onPrevPage()">上一页</button>
-            <span><span id="page-num">0</span> / <span id="page-count">0</span></span>
-            <button id="next-page" onclick="onNextPage()">下一页</button>
+            <button id="btn-jump-top" onclick="scrollToTop()" title="回到顶部">⬆ 顶部</button>
+            <span id="page-info">共 <span id="page-count">0</span> 页</span>
         </div>
     </div>
 
-    <div id="canvas-container">
-        <canvas id="pdf-render"></canvas>
-    </div>
+    <div id="canvas-container"></div>
 
     <script>
-        // 1. 初始化 PDF.js 工作器路径
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        // 1. 初始化 PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // 2. 定义全局状态变量
-        let pdfDoc = null,          // 当前加载的 PDF 文档对象
-            pageNum = 1,            // 当前页码
-            pageIsRendering = false,// 是否正在渲染当前页（防止连续点击冲突）
-            pageNumIsPending = null;// 队列中等待渲染的页码
+        // 2. 全局状态
+        let pdfDoc = null;
+        const container = document.getElementById('canvas-container');
 
-        const canvas = document.getElementById('pdf-render'),
-              ctx = canvas.getContext('2d');
+        // 设备像素比（高 DPI 屏幕渲染清晰文字的关键）
+        const DPR = window.devicePixelRatio || 1;
 
-        // 根据设备屏幕宽度动态计算渲染缩放比例（适配手机和电脑）
-        const scale = window.innerWidth < 768 ? 1.0 : 1.5; 
+        // 页面最大显示宽度（逻辑像素）
+        const MAX_DISPLAY_WIDTH = 900;
 
-        // 3. 渲染指定页码的函数
-        function renderPage(num) {
-            pageIsRendering = true;
+        // 3. 渲染所有页面（垂直堆叠，支持滚动/滑动）
+        async function renderAllPages() {
+            container.innerHTML = '';
+            if (!pdfDoc) return;
 
-            // 获取 PDF 的某一页
-            pdfDoc.getPage(num).then(page => {
-                const viewport = page.getViewport({ scale: scale });
-                // 设置画布尺寸与 PDF 页面尺寸一致
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+            const numPages = pdfDoc.numPages;
+            document.getElementById('page-count').textContent = numPages;
 
-                const renderCtx = {
-                    canvasContext: ctx,
-                    viewport: viewport
-                };
+            // 计算容器可用宽度
+            const containerWidth = container.clientWidth - 16; // 减去 padding
+            const displayWidth = Math.min(containerWidth, MAX_DISPLAY_WIDTH);
 
-                // 执行渲染，并等待渲染完成
-                page.render(renderCtx).promise.then(() => {
-                    pageIsRendering = false;
-                    // 如果渲染期间用户点击了翻页，处理队列中挂起的任务
-                    if (pageNumIsPending !== null) {
-                        renderPage(pageNumIsPending);
-                        pageNumIsPending = null;
-                    }
-                });
+            // 用第一页计算缩放比例（假设所有页尺寸一致）
+            const firstPage = await pdfDoc.getPage(1);
+            const baseViewport = firstPage.getViewport({ scale: 1 });
+            // scale = 让 PDF 宽度填满 displayWidth，再乘 DPR 保证清晰
+            const scale = (displayWidth / baseViewport.width) * DPR;
 
-                // 更新界面上的页码显示
-                document.getElementById('page-num').textContent = num;
-            });
-        }
-
-        // 处理渲染队列，确保按顺序绘制
-        function queueRenderPage(num) {
-            if (pageIsRendering) {
-                pageNumIsPending = num;
-            } else {
-                renderPage(num);
+            // 先按顺序创建所有 canvas 占位（保证页面顺序正确）
+            const canvasList = [];
+            for (let i = 0; i < numPages; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.className = 'page-canvas';
+                canvas.style.width = displayWidth + 'px';
+                // 先用占位高度，渲染后更新
+                canvas.style.height = '300px';
+                canvas.dataset.page = i + 1;
+                canvasList.push(canvas);
+                container.appendChild(canvas);
             }
+
+            // 并行渲染所有页面到各自 canvas
+            for (let i = 1; i <= numPages; i++) {
+                const idx = i - 1;
+                pdfDoc.getPage(i).then(page => {
+                    const viewport = page.getViewport({ scale });
+                    const canvas = canvasList[idx];
+                    // 设置 canvas 实际像素分辨率
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    // CSS 显示尺寸 = 实际像素 / DPR（保证清晰）
+                    canvas.style.height = Math.round(viewport.height / DPR) + 'px';
+                    canvas.style.width = displayWidth + 'px';
+
+                    const ctx = canvas.getContext('2d');
+                    page.render({
+                        canvasContext: ctx,
+                        viewport: viewport
+                    });
+                }).catch(err => {
+                    console.error(`渲染第 ${i} 页失败:`, err);
+                });
+            }
+
+            // 渲染完成后滚动到顶部
+            container.scrollTop = 0;
         }
 
-        // 点击“上一页”的逻辑
-        function onPrevPage() {
-            if (pageNum <= 1) return;
-            pageNum--;
-            queueRenderPage(pageNum);
-        }
-
-        // 点击“下一页”的逻辑
-        function onNextPage() {
-            if (pageNum >= pdfDoc.numPages) return;
-            pageNum++;
-            queueRenderPage(pageNum);
-        }
-
-        // 4. 加载 PDF 文件的核心函数
+        // 4. 加载 PDF
         function loadPDF(url) {
-            // 清理旧状态
             pdfDoc = null;
-            pageNum = 1;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            container.innerHTML = '';
             document.getElementById('page-count').textContent = '...';
 
-            // 请求并解析新的 PDF 数据
             pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
                 pdfDoc = pdfDoc_;
-                // 更新总页数
-                document.getElementById('page-count').textContent = pdfDoc.numPages;
-                // 渲染第一页
-                renderPage(pageNum);
+                renderAllPages();
             }).catch(err => {
-                console.error("PDF 加载失败: ", err);
-                alert("加载文档失败，可能文件不存在或发生跨域错误。");
+                console.error('PDF 加载失败:', err);
+                alert('加载文档失败，可能文件不存在或发生跨域错误。');
             });
         }
 
-        // 切换下拉菜单时触发
+        // 5. 下拉切换书目
         function loadSelectedPDF() {
             const selector = document.getElementById('pdf-selector');
             const url = selector.value;
-            if (url) {
-                loadPDF(url);
-            }
+            if (url) loadPDF(url);
         }
 
-        // 5. 页面初始化加载：读取本地 json 文件生成下拉列表
-        window.onload = function() {
+        // 6. 回到顶部
+        function scrollToTop() {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 7. 窗口大小变化时重新渲染（防抖）
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (pdfDoc) renderAllPages();
+            }, 400);
+        });
+
+        // 8. 页面初始化
+        window.onload = function () {
             fetch('book_list.json')
                 .then(response => response.json())
                 .then(files => {
-                    const selector = document.getElementById("pdf-selector");
-                    selector.innerHTML = ''; 
-                    
+                    const selector = document.getElementById('pdf-selector');
+                    selector.innerHTML = '';
+
                     if (files.length === 0) {
                         selector.innerHTML = '<option value="">未找到 PDF 文件</option>';
                         return;
@@ -166,17 +248,17 @@
 
                     files.forEach(filename => {
                         const option = document.createElement('option');
-                        option.value = 'books/' + filename; 
-                        option.textContent = filename.replace('.pdf', ''); 
+                        option.value = 'books/' + filename;
+                        option.textContent = filename.replace('.pdf', '');
                         selector.appendChild(option);
                     });
 
-                    // 默认加载列表中的第一个文档
                     loadSelectedPDF();
                 })
                 .catch(error => {
                     console.error('读取书目数据失败:', error);
-                    document.getElementById("pdf-selector").innerHTML = '<option value="">数据加载失败</option>';
+                    document.getElementById('pdf-selector').innerHTML =
+                        '<option value="">数据加载失败</option>';
                 });
         };
     </script>
