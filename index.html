@@ -2,69 +2,183 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <title>我的文档阅读器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的跨平台文档阅读器</title>
     <style>
-        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        #controls { padding: 10px; background-color: #f4f4f4; border-bottom: 1px solid #ddd; }
-        select { padding: 5px; font-size: 16px; margin-left: 10px; }
-        iframe { width: 100%; flex-grow: 1; border: none; display: block; }
+        /* 基础页面重置 */
+        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #525659; }
+        
+        /* 顶部控制栏样式（文档选择与翻页） */
+        #top-bar { 
+            background-color: #323639; color: white; padding: 10px; 
+            display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10;
+        }
+        .control-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        select, button { padding: 6px 12px; font-size: 14px; border-radius: 4px; border: none; cursor: pointer; }
+        button { background-color: #007bff; color: white; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        /* 画布容器样式（支持滚动） */
+        #canvas-container { flex-grow: 1; overflow: auto; display: flex; justify-content: center; padding: 10px; }
+        
+        /* 渲染 PDF 的画布 */
+        canvas { 
+            /* 确保画布在手机上不会超出屏幕宽度，按比例缩放 */
+            max-width: 100%; height: auto; 
+            background-color: white; box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 </head>
 <body>
 
-    <div id="controls">
-        <label for="pdf-selector">请选择文档：</label>
-        <select id="pdf-selector" onchange="changePDF()">
-            <option value="">正在加载书目列表...</option>
-        </select>
+    <div id="top-bar">
+        <div class="control-group">
+            <label for="pdf-selector">书目：</label>
+            <select id="pdf-selector" onchange="loadSelectedPDF()">
+                <option value="">正在加载书目列表...</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <button id="prev-page" onclick="onPrevPage()">上一页</button>
+            <span><span id="page-num">0</span> / <span id="page-count">0</span></span>
+            <button id="next-page" onclick="onNextPage()">下一页</button>
+        </div>
     </div>
 
-    <iframe id="pdf-viewer" src="">
-        您的浏览器不支持内嵌 PDF，请下载查看。
-    </iframe>
+    <div id="canvas-container">
+        <canvas id="pdf-render"></canvas>
+    </div>
 
     <script>
+        // 1. 初始化 PDF.js 工作器路径
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // 2. 定义全局状态变量
+        let pdfDoc = null,          // 当前加载的 PDF 文档对象
+            pageNum = 1,            // 当前页码
+            pageIsRendering = false,// 是否正在渲染当前页（防止连续点击冲突）
+            pageNumIsPending = null;// 队列中等待渲染的页码
+
+        const canvas = document.getElementById('pdf-render'),
+              ctx = canvas.getContext('2d');
+
+        // 根据设备屏幕宽度动态计算渲染缩放比例（适配手机和电脑）
+        const scale = window.innerWidth < 768 ? 1.0 : 1.5; 
+
+        // 3. 渲染指定页码的函数
+        function renderPage(num) {
+            pageIsRendering = true;
+
+            // 获取 PDF 的某一页
+            pdfDoc.getPage(num).then(page => {
+                const viewport = page.getViewport({ scale: scale });
+                // 设置画布尺寸与 PDF 页面尺寸一致
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderCtx = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+
+                // 执行渲染，并等待渲染完成
+                page.render(renderCtx).promise.then(() => {
+                    pageIsRendering = false;
+                    // 如果渲染期间用户点击了翻页，处理队列中挂起的任务
+                    if (pageNumIsPending !== null) {
+                        renderPage(pageNumIsPending);
+                        pageNumIsPending = null;
+                    }
+                });
+
+                // 更新界面上的页码显示
+                document.getElementById('page-num').textContent = num;
+            });
+        }
+
+        // 处理渲染队列，确保按顺序绘制
+        function queueRenderPage(num) {
+            if (pageIsRendering) {
+                pageNumIsPending = num;
+            } else {
+                renderPage(num);
+            }
+        }
+
+        // 点击“上一页”的逻辑
+        function onPrevPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        }
+
+        // 点击“下一页”的逻辑
+        function onNextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        }
+
+        // 4. 加载 PDF 文件的核心函数
+        function loadPDF(url) {
+            // 清理旧状态
+            pdfDoc = null;
+            pageNum = 1;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('page-count').textContent = '...';
+
+            // 请求并解析新的 PDF 数据
+            pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+                pdfDoc = pdfDoc_;
+                // 更新总页数
+                document.getElementById('page-count').textContent = pdfDoc.numPages;
+                // 渲染第一页
+                renderPage(pageNum);
+            }).catch(err => {
+                console.error("PDF 加载失败: ", err);
+                alert("加载文档失败，可能文件不存在或发生跨域错误。");
+            });
+        }
+
+        // 切换下拉菜单时触发
+        function loadSelectedPDF() {
+            const selector = document.getElementById('pdf-selector');
+            const url = selector.value;
+            if (url) {
+                loadPDF(url);
+            }
+        }
+
+        // 5. 页面初始化加载：读取本地 json 文件生成下拉列表
         window.onload = function() {
-            // 直接读取同目录下的静态 json 文件，没有任何外部 API 限制
             fetch('book_list.json')
                 .then(response => response.json())
                 .then(files => {
                     const selector = document.getElementById("pdf-selector");
-                    selector.innerHTML = ''; // 清空提示
+                    selector.innerHTML = ''; 
                     
-                    // 如果 JSON 列表为空
                     if (files.length === 0) {
                         selector.innerHTML = '<option value="">未找到 PDF 文件</option>';
                         return;
                     }
 
-                    // 遍历 JSON 里的文件名，生成下拉选项
                     files.forEach(filename => {
                         const option = document.createElement('option');
-                        // 拼接路径，例如 "books/化羽.pdf"
                         option.value = 'books/' + filename; 
-                        // 截去 .pdf 后缀作为显示文字
                         option.textContent = filename.replace('.pdf', ''); 
                         selector.appendChild(option);
                     });
 
-                    // 默认显示列表中的第一本书
-                    document.getElementById("pdf-viewer").src = 'books/' + files[0];
+                    // 默认加载列表中的第一个文档
+                    loadSelectedPDF();
                 })
                 .catch(error => {
                     console.error('读取书目数据失败:', error);
                     document.getElementById("pdf-selector").innerHTML = '<option value="">数据加载失败</option>';
                 });
         };
-
-        function changePDF() {
-            var selector = document.getElementById("pdf-selector");
-            var selectedFile = selector.options[selector.selectedIndex].value;
-            if (selectedFile) {
-                document.getElementById("pdf-viewer").src = selectedFile;
-            }
-        }
     </script>
-
 </body>
 </html>
