@@ -40,12 +40,31 @@
             position: relative; min-height: 100vh; display: flex;
             align-items: center; justify-content: center; overflow: hidden;
         }
+        /* 两层背景图片交叉渐变 */
         #hero .bg {
             position: absolute; inset: 0;
-            background: url('figs/pic2.jpg') center/cover no-repeat;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
             filter: brightness(0.45);
             transform: scale(1.05);
             z-index: 0;
+        }
+        #hero .bg1 {
+            background-image: url('figs/pic1.bmp');
+            animation: crossfadeBg1 10s ease-in-out infinite;
+        }
+        #hero .bg2 {
+            background-image: url('figs/pic2.jpg');
+            animation: crossfadeBg2 10s ease-in-out infinite;
+        }
+        @keyframes crossfadeBg1 {
+            0%, 40%   { opacity: 1; }
+            50%, 90%  { opacity: 0; }
+            100%      { opacity: 1; }
+        }
+        @keyframes crossfadeBg2 {
+            0%, 40%   { opacity: 0; }
+            50%, 90%  { opacity: 1; }
+            100%      { opacity: 0; }
         }
         #hero .overlay {
             position: absolute; inset: 0;
@@ -171,7 +190,8 @@
 
     <!-- ==================== Hero ==================== -->
     <section id="hero">
-        <div class="bg"></div>
+        <div class="bg bg1"></div>
+        <div class="bg bg2"></div>
         <div class="overlay"></div>
         <div class="hero-content">
             <h1>你好，欢迎来访</h1>
