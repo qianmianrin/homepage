@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档阅读</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+            color: #e0e0e0;
+            background: #1a1a2e;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        /* ====== Fixed Top Bar ====== */
+        #top-bar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: center; gap: 14px;
+            padding: 10px 20px;
+            background: rgba(30, 30, 54, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-wrap: wrap;
+        }
+        #top-bar label { font-size: 14px; color: #b0b0c0; white-space: nowrap; }
+        #top-bar select {
+            padding: 7px 12px; font-size: 14px; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: #2a2a48; color: #e0e0e0; cursor: pointer; outline: none;
+            max-width: 200px;
+        }
+        #top-bar select:focus { border-color: #6366f1; }
+
+        #top-bar .page-nav {
+            display: flex; align-items: center; gap: 6px;
+        }
+        #top-bar .page-nav input {
+            width: 52px; padding: 6px 8px; font-size: 14px; text-align: center;
+            border-radius: 6px; border: 1px solid rgba(255,255,255,0.12);
+            background: #2a2a48; color: #e0e0e0; outline: none;
+        }
+        #top-bar .page-nav input:focus { border-color: #6366f1; }
+        #top-bar .page-nav span { font-size: 14px; color: #999; white-space: nowrap; }
+
+        #top-bar button {
+            padding: 7px 14px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer;
+            background: #6366f1; color: #fff; font-weight: 500; white-space: nowrap;
+            transition: background 0.2s;
+        }
+        #top-bar button:hover { background: #5558e6; }
+        #top-bar button:disabled { background: #3a3a55; color: #666; cursor: not-allowed; }
+
+        #top-bar .back-link {
+            font-size: 13px; color: #888; text-decoration: none;
+            white-space: nowrap; transition: color 0.2s;
+        }
+        #top-bar .back-link:hover { color: #ccc; }
+
+        /* ====== Canvas Container ====== */
+        #canvas-container {
+            /* Push below fixed top bar */
+            margin-top: 56px;
+            padding: 16px 8px 40px;
+            display: flex; flex-direction: column; align-items: center;
+            gap: 14px;
+            max-width: 960px;
+            margin-left: auto; margin-right: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .page-canvas {
+            display: block;
+            width: 100%; height: auto;
+            background: #fff;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            border-radius: 3px;
+        }
+
+        /* ====== Loading ====== */
+        #loading {
+            text-align: center; padding: 60px 20px; color: #666; font-size: 15px;
+            margin-top: 56px;
+        }
+
+        /* ====== Responsive ====== */
+        @media (max-width: 640px) {
+            #top-bar { gap: 8px; padding: 8px 12px; }
+            #top-bar select { max-width: 140px; font-size: 13px; }
+            #top-bar .page-nav input { width: 44px; font-size: 13px; }
+            #top-bar button { padding: 6px 10px; font-size: 12px; }
+            #canvas-container { margin-top: 50px; padding: 10px 4px 30px; gap: 10px; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+</head>
+<body>
+
+    <!-- ====== Fixed Top Bar ====== -->
+    <div id="top-bar">
+        <label for="pdf-selector">📖 书目</label>
+        <select id="pdf-selector" onchange="loadSelectedPDF()">
+            <option value="">加载中...</option>
+        </select>
+
+        <div class="page-nav">
+            <span>第</span>
+            <input id="jump-input" type="number" min="1" value="1" onkeydown="if(event.key==='Enter')jumpToPage()">
+            <span>/ <span id="page-count">0</span> 页</span>
+        </div>
+        <button onclick="jumpToPage()">跳转</button>
+
+        <a class="back-link" href="index.html">← 返回主页</a>
+    </div>
+
+    <!-- ====== Loading Placeholder ====== -->
+    <div id="loading">正在加载文档...</div>
+
+    <!-- ====== Canvas Container ====== -->
+    <div id="canvas-container"></div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        let pdfDoc = null;
+        const container = document.getElementById('canvas-container');
+        const loadingEl = document.getElementById('loading');
+        const DPR = window.devicePixelRatio || 1;
+        const MAX_PAGE_WIDTH = 960;
+
+        // ======== Jump to specific page ========
+        function jumpToPage() {
+            if (!pdfDoc) return;
+            const input = document.getElementById('jump-input');
+            let page = parseInt(input.value);
+            if (isNaN(page) || page < 1) page = 1;
+            if (page > pdfDoc.numPages) page = pdfDoc.numPages;
+            input.value = page;
+
+            const canvas = document.querySelector(`[data-page="${page}"]`);
+            if (canvas) {
+                canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // ======== Render all pages ========
+        async function renderAllPages() {
+            container.innerHTML = '';
+            if (!pdfDoc) return;
+
+            const numPages = pdfDoc.numPages;
+            document.getElementById('page-count').textContent = numPages;
+            document.getElementById('jump-input').max = numPages;
+            loadingEl.style.display = 'none';
+
+            const containerWidth = container.clientWidth;
+            const cssWidth = Math.min(containerWidth, MAX_PAGE_WIDTH);
+
+            const firstPage = await pdfDoc.getPage(1);
+            const baseVp = firstPage.getViewport({ scale: 1 });
+            const canvasPixelWidth = Math.round(cssWidth * DPR);
+            const scale = canvasPixelWidth / baseVp.width;
+
+            // Create all canvases in order
+            const canvasList = [];
+            for (let i = 0; i < numPages; i++) {
+                const canvas = document.createElement('canvas');
+                canvas.className = 'page-canvas';
+                canvas.dataset.page = i + 1;
+                canvas.height = 100;
+                canvas.width = 100;
+                canvasList.push(canvas);
+                container.appendChild(canvas);
+            }
+
+            // Render all pages
+            for (let i = 1; i <= numPages; i++) {
+                const idx = i - 1;
+                pdfDoc.getPage(i).then(page => {
+                    const vp = page.getViewport({ scale });
+                    const canvas = canvasList[idx];
+                    canvas.width = Math.round(vp.width);
+                    canvas.height = Math.round(vp.height);
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    page.render({ canvasContext: ctx, viewport: vp });
+                }).catch(err => {
+                    console.error(`渲染第 ${i} 页失败:`, err);
+                });
+            }
+
+            window.scrollTo(0, 0);
+            container.scrollTop = 0;
+        }
+
+        // ======== Load PDF ========
+        function loadPDF(url) {
+            pdfDoc = null;
+            container.innerHTML = '';
+            loadingEl.style.display = 'block';
+            document.getElementById('page-count').textContent = '...';
+
+            pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+                pdfDoc = pdfDoc_;
+                renderAllPages();
+            }).catch(err => {
+                console.error('PDF 加载失败:', err);
+                loadingEl.textContent = '加载失败，请检查文件是否存在。';
+                loadingEl.style.display = 'block';
+            });
+        }
+
+        // ======== Selector change ========
+        function loadSelectedPDF() {
+            const url = document.getElementById('pdf-selector').value;
+            if (url) loadPDF(url);
+        }
+
+        // ======== Re-render on resize ========
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (pdfDoc) renderAllPages();
+            }, 500);
+        });
+
+        // ======== Init ========
+        window.onload = function () {
+            fetch('book_list.json')
+                .then(r => r.json())
+                .then(files => {
+                    const sel = document.getElementById('pdf-selector');
+                    sel.innerHTML = '';
+                    if (!files.length) {
+                        sel.innerHTML = '<option value="">未找到 PDF</option>';
+                        return;
+                    }
+                    files.forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = 'books/' + f;
+                        opt.textContent = f.replace(/\.pdf$/i, '');
+                        sel.appendChild(opt);
+                    });
+                    loadSelectedPDF();
+                })
+                .catch(err => {
+                    console.error('读取书目失败:', err);
+                    document.getElementById('pdf-selector').innerHTML =
+                        '<option value="">加载失败</option>';
+                });
+        };
+    </script>
+</body>
+</html>

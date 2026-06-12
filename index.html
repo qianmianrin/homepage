@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>个人主页</title>
     <style>
-        /* ========== CSS Reset & Base ========== */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
@@ -18,7 +17,7 @@
             text-rendering: optimizeLegibility;
         }
 
-        /* ========== Navigation ========== */
+        /* ====== Navigation ====== */
         nav {
             position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
             display: flex; align-items: center; justify-content: space-between;
@@ -28,54 +27,56 @@
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        nav .brand { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; color: #fff; }
-        nav .nav-links { display: flex; gap: 24px; list-style: none; }
+        nav .brand { font-size: 18px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+        nav .nav-links { display: flex; gap: 28px; list-style: none; }
         nav .nav-links a {
             color: #b0b0c0; text-decoration: none; font-size: 14px; font-weight: 500;
             transition: color 0.2s;
         }
         nav .nav-links a:hover { color: #fff; }
 
-        /* ========== Hero Section ========== */
+        /* ====== Hero ====== */
         #hero {
-            position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
+            position: relative; min-height: 100vh; display: flex;
+            align-items: center; justify-content: center; overflow: hidden;
         }
         #hero .bg {
             position: absolute; inset: 0;
             background: url('figs/pic2.jpg') center/cover no-repeat;
-            filter: brightness(0.45) blur(0px);
+            filter: brightness(0.45);
             transform: scale(1.05);
             z-index: 0;
         }
         #hero .overlay {
             position: absolute; inset: 0;
-            background: linear-gradient(180deg, rgba(26,26,46,0.3) 0%, rgba(26,26,46,0.8) 100%);
+            background: linear-gradient(180deg, rgba(26,26,46,0.3) 0%, rgba(26,26,46,0.85) 100%);
             z-index: 1;
         }
         #hero .hero-content {
-            position: relative; z-index: 2; text-align: center; padding: 0 24px; max-width: 640px;
+            position: relative; z-index: 2; text-align: center;
+            padding: 0 24px; max-width: 640px;
         }
         #hero .hero-content h1 {
-            font-size: clamp(36px, 6vw, 64px); font-weight: 800; letter-spacing: 2px;
+            font-size: clamp(36px, 6vw, 64px); font-weight: 800; letter-spacing: 3px;
             color: #fff; margin-bottom: 16px;
-            text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 24px rgba(0,0,0,0.5);
         }
         #hero .hero-content .subtitle {
-            font-size: clamp(16px, 2.5vw, 22px); color: rgba(255,255,255,0.8);
-            font-weight: 300; letter-spacing: 4px;
+            font-size: clamp(16px, 2.5vw, 22px);
+            color: rgba(255,255,255,0.78);
+            font-weight: 300; letter-spacing: 5px;
         }
         #hero .scroll-hint {
-            position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 2;
-            color: rgba(255,255,255,0.5); font-size: 13px; letter-spacing: 2px;
-            animation: bounce 2s infinite;
+            position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+            z-index: 2; color: rgba(255,255,255,0.45); font-size: 13px;
+            letter-spacing: 2px; animation: bounce 2s infinite;
         }
         @keyframes bounce {
             0%, 100% { transform: translateX(-50%) translateY(0); }
             50% { transform: translateX(-50%) translateY(8px); }
         }
 
-        /* ========== Section Common ========== */
+        /* ====== Sections ====== */
         section { padding: 80px 24px; }
         .section-inner { max-width: 900px; margin: 0 auto; }
         .section-title {
@@ -88,11 +89,15 @@
             margin: 12px auto 0; border-radius: 2px;
         }
 
-        /* ========== About Section ========== */
+        /* ====== About ====== */
         #about { background: #1e1e36; }
-        #about p { color: #c0c0d0; font-size: 16px; text-align: center; max-width: 600px; margin: 0 auto; }
+        #about p {
+            color: #c0c0d0; font-size: 16px; text-align: center;
+            max-width: 600px; margin: 0 auto;
+        }
         #about .tag-list {
-            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 28px;
+            display: flex; flex-wrap: wrap; gap: 10px;
+            justify-content: center; margin-top: 28px;
         }
         #about .tag {
             padding: 6px 18px; border-radius: 20px; font-size: 13px; font-weight: 500;
@@ -100,77 +105,57 @@
             border: 1px solid rgba(99,102,241,0.25);
         }
 
-        /* ========== Reader Section ========== */
-        #reader { background: #1a1a2e; }
-        #reader .section-inner { max-width: 960px; }
+        /* ====== Reader CTA ====== */
+        #reader-cta { background: #1a1a2e; text-align: center; }
+        #reader-cta .cta-card {
+            display: inline-block; padding: 36px 56px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.08));
+            border: 1px solid rgba(99,102,241,0.2); border-radius: 16px;
+            text-decoration: none; color: #e0e0e0; transition: all 0.3s;
+        }
+        #reader-cta .cta-card:hover {
+            border-color: rgba(99,102,241,0.5);
+            background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.14));
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99,102,241,0.15);
+        }
+        #reader-cta .cta-card .cta-icon { font-size: 40px; margin-bottom: 12px; }
+        #reader-cta .cta-card .cta-title { font-size: 20px; font-weight: 700; color: #fff; }
+        #reader-cta .cta-card .cta-desc { font-size: 14px; color: #999; margin-top: 6px; }
 
-        /* Reader top bar */
-        #top-bar {
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            padding: 12px 16px; margin-bottom: 16px;
-            background: #232340; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
-            flex-wrap: wrap;
+        /* ====== Contact ====== */
+        #contact { background: #1e1e36; }
+        #contact .contact-links {
+            display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;
         }
-        #top-bar .control-group { display: flex; align-items: center; gap: 8px; }
-        #top-bar label { font-size: 14px; color: #b0b0c0; white-space: nowrap; }
-        #top-bar select {
-            padding: 7px 12px; font-size: 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
-            background: #2a2a48; color: #e0e0e0; cursor: pointer; outline: none;
-            max-width: 220px;
+        #contact .contact-links a {
+            color: #999; text-decoration: none; font-size: 15px;
+            padding: 10px 24px; border-radius: 8px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.2s;
         }
-        #top-bar select:focus { border-color: #6366f1; }
-        #top-bar button {
-            padding: 7px 16px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer;
-            background: #6366f1; color: #fff; font-weight: 500; white-space: nowrap;
-            transition: background 0.2s;
-        }
-        #top-bar button:hover { background: #5558e6; }
-        #top-bar button:disabled { background: #3a3a55; color: #777; cursor: not-allowed; }
-        #top-bar #page-info { font-size: 13px; color: #999; white-space: nowrap; }
-
-        /* Canvas container — scroll/swipe reading */
-        #canvas-container {
-            display: flex; flex-direction: column; align-items: center;
-            gap: 14px; padding: 8px 0;
-            /* Limit width for readability, center */
-            max-width: 900px; margin: 0 auto;
-            /* iOS momentum scroll */
-            -webkit-overflow-scrolling: touch;
+        #contact .contact-links a:hover {
+            color: #fff; border-color: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.08);
         }
 
-        /* Each PDF page canvas */
-        .page-canvas {
-            display: block;
-            /* Let CSS handle sizing naturally: fill container, keep aspect ratio */
-            width: 100%;
-            height: auto;
-            background: #fff;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-            border-radius: 3px;
-            /* No image-rendering override — default "auto" gives best quality */
-        }
-
-        /* ========== Footer ========== */
+        /* ====== Footer ====== */
         footer {
-            text-align: center; padding: 40px 24px;
-            color: #666; font-size: 13px; border-top: 1px solid rgba(255,255,255,0.05);
+            text-align: center; padding: 36px 24px;
+            color: #555; font-size: 13px;
+            border-top: 1px solid rgba(255,255,255,0.05);
             background: #16162a;
         }
-        footer a { color: #888; text-decoration: none; }
-        footer a:hover { color: #ccc; }
 
-        /* ========== Responsive ========== */
+        /* ====== Responsive ====== */
         @media (max-width: 640px) {
             nav { padding: 0 16px; }
-            nav .nav-links { gap: 14px; }
+            nav .nav-links { gap: 16px; }
             nav .nav-links a { font-size: 13px; }
             section { padding: 60px 16px; }
-            #top-bar { flex-direction: column; align-items: stretch; }
-            #top-bar .control-group { justify-content: center; }
-            #top-bar select { max-width: none; flex: 1; }
+            #reader-cta .cta-card { padding: 28px 36px; }
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 </head>
 <body>
 
@@ -180,7 +165,7 @@
         <ul class="nav-links">
             <li><a href="#hero">首页</a></li>
             <li><a href="#about">关于</a></li>
-            <li><a href="#reader">阅读</a></li>
+            <li><a href="reader.html">阅读</a></li>
         </ul>
     </nav>
 
@@ -199,7 +184,7 @@
     <section id="about">
         <div class="section-inner">
             <h2 class="section-title">关于我</h2>
-            <p>热爱阅读、写作与思考。这里是我的个人主页，记录学习与创作的足迹。你可以在这里浏览我整理的文档与笔记。</p>
+            <p>热爱阅读、写作与思考。这里是我的个人主页，记录学习与创作的足迹。</p>
             <div class="tag-list">
                 <span class="tag">📚 阅读</span>
                 <span class="tag">✍️ 写作</span>
@@ -210,25 +195,27 @@
         </div>
     </section>
 
-    <!-- ==================== Reader ==================== -->
-    <section id="reader">
+    <!-- ==================== Reader CTA ==================== -->
+    <section id="reader-cta">
         <div class="section-inner">
-            <h2 class="section-title">文档阅读</h2>
+            <h2 class="section-title">阅读区</h2>
+            <a class="cta-card" href="reader.html">
+                <div class="cta-icon">📖</div>
+                <div class="cta-title">打开文档阅读器</div>
+                <div class="cta-desc">浏览 PDF 文档，支持滚动与滑动阅读</div>
+            </a>
+        </div>
+    </section>
 
-            <div id="top-bar">
-                <div class="control-group">
-                    <label for="pdf-selector">📖 书目</label>
-                    <select id="pdf-selector" onchange="loadSelectedPDF()">
-                        <option value="">正在加载书目列表...</option>
-                    </select>
-                </div>
-                <div class="control-group">
-                    <button id="btn-top" onclick="scrollToTop()">⬆ 回到顶部</button>
-                    <span id="page-info">共 <span id="page-count">0</span> 页</span>
-                </div>
+    <!-- ==================== Contact ==================== -->
+    <section id="contact">
+        <div class="section-inner">
+            <h2 class="section-title">联系方式</h2>
+            <div class="contact-links">
+                <a href="mailto:your@email.com">📧 Email</a>
+                <a href="https://github.com" target="_blank">💻 GitHub</a>
+                <a href="reader.html">📖 阅读器</a>
             </div>
-
-            <div id="canvas-container"></div>
         </div>
     </section>
 
@@ -236,142 +223,5 @@
     <footer>
         <p>© 2025 个人主页 · 由 ❤️ 构建</p>
     </footer>
-
-    <!-- ==================== PDF Reader Script ==================== -->
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-        let pdfDoc = null;
-        const container = document.getElementById('canvas-container');
-        const DPR = window.devicePixelRatio || 1;
-
-        // Maximum display width for PDF pages (CSS pixels)
-        const MAX_PAGE_WIDTH = 900;
-
-        // ======== Render all pages ========
-        async function renderAllPages() {
-            container.innerHTML = '';
-            if (!pdfDoc) return;
-
-            const numPages = pdfDoc.numPages;
-            document.getElementById('page-count').textContent = numPages;
-
-            // Container available width
-            const containerWidth = container.clientWidth;
-            const cssWidth = Math.min(containerWidth, MAX_PAGE_WIDTH);
-
-            // Get first page to compute scale
-            const firstPage = await pdfDoc.getPage(1);
-            const baseVp = firstPage.getViewport({ scale: 1 });
-
-            // KEY: canvas pixel width = cssWidth × DPR → 1:1 screen pixel mapping
-            const canvasPixelWidth = Math.round(cssWidth * DPR);
-            const scale = canvasPixelWidth / baseVp.width;
-
-            // Pre-create all canvases in order (with placeholder)
-            const canvasList = [];
-            for (let i = 0; i < numPages; i++) {
-                const canvas = document.createElement('canvas');
-                canvas.className = 'page-canvas';
-                // Temporary height; CSS width:100% handles horizontal sizing naturally
-                canvas.height = 100;
-                canvas.width = 100;
-                canvasList.push(canvas);
-                container.appendChild(canvas);
-            }
-
-            // Render all pages (parallel fetch, may complete out of order)
-            for (let i = 1; i <= numPages; i++) {
-                const idx = i - 1;
-                pdfDoc.getPage(i).then(page => {
-                    const vp = page.getViewport({ scale });
-                    const canvas = canvasList[idx];
-
-                    // Set actual pixel dimensions (high resolution)
-                    canvas.width = Math.round(vp.width);
-                    canvas.height = Math.round(vp.height);
-                    // CSS: width:100% + height:auto in stylesheet handles display size
-                    // → browser maps canvas pixels perfectly to screen physical pixels
-
-                    const ctx = canvas.getContext('2d');
-                    // Ensure crisp rendering
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-
-                    page.render({
-                        canvasContext: ctx,
-                        viewport: vp
-                    });
-                }).catch(err => {
-                    console.error(`渲染第 ${i} 页失败:`, err);
-                });
-            }
-
-            container.scrollTop = 0;
-        }
-
-        // ======== Load PDF ========
-        function loadPDF(url) {
-            pdfDoc = null;
-            container.innerHTML = '';
-            document.getElementById('page-count').textContent = '...';
-
-            pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
-                pdfDoc = pdfDoc_;
-                renderAllPages();
-            }).catch(err => {
-                console.error('PDF 加载失败:', err);
-                alert('加载文档失败，可能文件不存在或发生跨域错误。');
-            });
-        }
-
-        // ======== Selector ========
-        function loadSelectedPDF() {
-            const url = document.getElementById('pdf-selector').value;
-            if (url) loadPDF(url);
-        }
-
-        // ======== Scroll to top ========
-        function scrollToTop() {
-            const el = document.getElementById('reader');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        // ======== Re-render on resize (debounced) ========
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                if (pdfDoc) renderAllPages();
-            }, 500);
-        });
-
-        // ======== Init ========
-        window.onload = function () {
-            fetch('book_list.json')
-                .then(r => r.json())
-                .then(files => {
-                    const sel = document.getElementById('pdf-selector');
-                    sel.innerHTML = '';
-                    if (!files.length) {
-                        sel.innerHTML = '<option value="">未找到 PDF 文件</option>';
-                        return;
-                    }
-                    files.forEach(f => {
-                        const opt = document.createElement('option');
-                        opt.value = 'books/' + f;
-                        opt.textContent = f.replace(/\.pdf$/i, '');
-                        sel.appendChild(opt);
-                    });
-                    loadSelectedPDF();
-                })
-                .catch(err => {
-                    console.error('读取书目失败:', err);
-                    document.getElementById('pdf-selector').innerHTML =
-                        '<option value="">数据加载失败</option>';
-                });
-        };
-    </script>
 </body>
 </html>
